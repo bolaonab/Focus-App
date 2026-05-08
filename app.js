@@ -16,6 +16,9 @@ let state = {
   startedAt: null,
   sessionId: null,
 
+  // settings
+  autoStart: true,
+
   // history
   history: [],
 };
@@ -93,17 +96,56 @@ function playSound(type) {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ctx = audioCtx;
     const now = ctx.currentTime;
-    const freqs = type === "done" ? [523,659,784,1047,1319] : [784,1047];
-    freqs.forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = f; o.type = "sine";
-      g.gain.setValueAtTime(0.25, now + i*0.18);
-      g.gain.exponentialRampToValueAtTime(0.001, now + i*0.18 + 0.5);
-      o.start(now + i*0.18); o.stop(now + i*0.18 + 0.55);
-    });
+
+    if (type === "done") {
+      // Rich triumphant fanfare — 6 notes, held longer with harmonics
+      const melody = [523, 659, 784, 1047, 784, 1047, 1319];
+      const timing  = [0,  0.22, 0.44, 0.66, 0.88, 1.05, 1.25];
+      const dur     = [0.5, 0.5, 0.5,  0.5,  0.35, 0.35, 1.2];
+      melody.forEach((f, i) => {
+        ["sine","triangle"].forEach(type => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = f; o.type = type;
+          const vol = type === "sine" ? 0.28 : 0.08;
+          g.gain.setValueAtTime(vol, now + timing[i]);
+          g.gain.setValueAtTime(vol, now + timing[i] + dur[i] - 0.08);
+          g.gain.exponentialRampToValueAtTime(0.001, now + timing[i] + dur[i]);
+          o.start(now + timing[i]); o.stop(now + timing[i] + dur[i] + 0.05);
+        });
+      });
+    } else {
+      // Subtask chime — 3 warm ascending notes, each held ~0.7s
+      const notes  = [659, 784, 1047];
+      const timing = [0, 0.3, 0.6];
+      const dur    = [0.65, 0.65, 1.0];
+      notes.forEach((f, i) => {
+        ["sine","triangle"].forEach(wt => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = f; o.type = wt;
+          const vol = wt === "sine" ? 0.26 : 0.07;
+          g.gain.setValueAtTime(vol, now + timing[i]);
+          g.gain.setValueAtTime(vol, now + timing[i] + dur[i] - 0.1);
+          g.gain.exponentialRampToValueAtTime(0.001, now + timing[i] + dur[i]);
+          o.start(now + timing[i]); o.stop(now + timing[i] + dur[i] + 0.05);
+        });
+      });
+    }
   } catch(e) {}
+}
+
+function vibrate(type) {
+  if (!navigator.vibrate) return;
+  if (type === "done") {
+    // Long celebratory pattern
+    navigator.vibrate([200, 100, 200, 100, 400]);
+  } else {
+    // Two firm pulses
+    navigator.vibrate([150, 80, 150]);
+  }
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
@@ -130,26 +172,38 @@ function startTimer() {
     if (state.timeLeft === 0) {
       const next = state.currentIdx + 1;
       if (next >= state.subtasks.length) {
-        // Done
+        // All done
         clearInterval(timerInterval);
         state.running = false;
         state.completedCount = state.subtasks.length;
         playSound("done");
+        vibrate("done");
         notify("🎉 Session Complete!", `"${state.activity}" is done!`);
         finishSession();
         state.screen = "done";
         clearRunning();
         render();
       } else {
+        // Subtask ended
         playSound("subtask");
+        vibrate("subtask");
         notify("✅ Subtask done!", `Up next: "${state.subtasks[next].name}"`);
-        state.currentIdx = next;
         state.completedCount = next;
-        state.timeLeft = state.subtasks[next].minutes * 60;
-        render();
+
+        if (state.autoStart) {
+          // Auto-advance
+          state.currentIdx = next;
+          state.timeLeft = state.subtasks[next].minutes * 60;
+          render();
+        } else {
+          // Pause and wait for user to tap Next
+          state.running = false;
+          state.screen = "ready"; // waiting screen
+          state.nextIdx = next;
+          render();
+        }
       }
     } else {
-      // Only re-render timer digits
       const el = document.getElementById("timer-display");
       if (el) el.textContent = formatTime(state.timeLeft);
       updateRing();
@@ -299,6 +353,16 @@ function screenSetup() {
     </div>
     <button class="add-sub-btn" onclick="addSubtask()" ${rem<=0?"disabled":""}>+ Add Subtask</button>
 
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Auto-start next subtask</div>
+        <div class="toggle-sub">When off, you tap to begin each subtask</div>
+      </div>
+      <div class="toggle-switch ${state.autoStart?"on":""}" onclick="toggleAutoStart()">
+        <div class="toggle-thumb"></div>
+      </div>
+    </div>
+
     <button class="big-btn" style="margin-top:24px"
       onclick="startSession()"
       ${(!state.activity.trim() || state.subtasks.length===0 || rem<0) ? "disabled" : ""}>
@@ -389,6 +453,41 @@ function screenRunning() {
   </div>`;
 }
 
+function screenReady() {
+  const done = state.subtasks[state.currentIdx];
+  const next = state.subtasks[state.nextIdx];
+  const color = COLORS[state.nextIdx % COLORS.length];
+  return `
+  <div class="screen fade-in" style="text-align:center">
+    <div class="top-bar">
+      <button class="back-btn" onclick="confirmStop()">‹ Stop</button>
+      <div class="top-title">${esc(state.activity)}</div>
+    </div>
+
+    <div class="ready-wrap">
+      <div class="ready-check">✓</div>
+      <div class="ready-done">${esc(done?.name || "")} done!</div>
+      <div class="ready-label">UP NEXT</div>
+      <div class="ready-next" style="border-color:${color}">
+        <div class="cur-dot" style="background:${color}"></div>
+        ${esc(next?.name || "")}
+        <span class="ready-dur">${next?.minutes}m</span>
+      </div>
+    </div>
+
+    <div class="sub-dots" style="margin-bottom:32px">
+      ${state.subtasks.map((_,i) => `
+        <div class="sub-pip ${i===state.nextIdx?"active":i<state.nextIdx?"done":""}"
+          style="${i===state.nextIdx?`background:${COLORS[i%COLORS.length]}`:i<state.nextIdx?"background:#48DBFB":""}"></div>
+      `).join("")}
+    </div>
+
+    <button class="big-btn" onclick="beginNextSubtask()">
+      ▶ Start ${esc(next?.name || "Next")}
+    </button>
+  </div>`;
+}
+
 function screenDone() {
   const total = state.subtasks.reduce((a,s)=>a+s.minutes,0);
   return `
@@ -417,6 +516,20 @@ function esc(s) {
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
+window.beginNextSubtask = () => {
+  state.currentIdx = state.nextIdx;
+  state.timeLeft = state.subtasks[state.currentIdx].minutes * 60;
+  state.running = true;
+  state.screen = "running";
+  render();
+};
+
+window.toggleAutoStart = () => {
+  state.autoStart = !state.autoStart;
+  saveDraft();
+  render();
+};
+
 window.goHome = () => { state.screen = "home"; render(); };
 window.goSetup = () => { state.screen = "setup"; render(); };
 
@@ -525,6 +638,7 @@ function render() {
     case "home":    app.innerHTML = screenHome(); break;
     case "setup":   app.innerHTML = screenSetup(); break;
     case "running": app.innerHTML = screenRunning(); break;
+    case "ready":   app.innerHTML = screenReady(); break;
     case "done":    app.innerHTML = screenDone(); break;
   }
 }
