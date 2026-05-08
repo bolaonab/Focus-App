@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Focus" />
+  <meta name="theme-color" content="#0a0a0c" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Focus Sessions</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0a0a0c;
+      --surface: #13131a;
+      --surface2: #1c1c26;
+      --border: #2a2a38;
+      --text: #f0ede8;
+      --muted: #666780;
+      --accent: #FF6B6B;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      overflow-x: hidden;
+    }
+
+    #app {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Screen ── */
+    .screen {
+      flex: 1;
+      padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bot) + 32px);
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .fade-in { animation: fadeUp .35s ease both; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(18px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+
+    /* ── Home ── */
+    .home-header {
+      text-align: center;
+      padding: 32px 0 36px;
+    }
+    .app-wordmark {
+      font-family: 'Syne', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      background: linear-gradient(135deg, #FF6B6B, #FF9F43);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .app-sub {
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Big button ── */
+    .big-btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background .15s, transform .1s;
+    }
+    .big-btn:active { transform: scale(.97); }
+    .big-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .big-btn-icon { font-size: 22px; font-weight: 300; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      margin: 28px 0 12px;
+    }
+
+    /* ── History ── */
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .hist-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .hist-card:active { border-color: #444; }
+    .hist-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .hist-name { font-size: 15px; font-weight: 500; }
+    .hist-dur { font-size: 12px; color: var(--accent); }
+    .hist-meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .hist-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+    .hist-tag {
+      font-size: 10px; padding: 2px 8px;
+      border: 1px solid; border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+    .hist-rerun { font-size: 11px; color: var(--muted); text-align: right; }
+
+    .empty-hist {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 0;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    .clear-hist {
+      margin-top: 16px;
+      width: 100%;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Setup ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .back-btn {
+      background: none; border: none; color: var(--accent);
+      font-family: inherit; font-size: 16px; cursor: pointer;
+      padding: 0; margin-right: 12px;
+    }
+    .top-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .text-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      margin-bottom: 22px;
+      transition: border-color .15s;
+    }
+    .text-input:focus { border-color: #444; }
+
+    .slider {
+      width: 100%;
+      accent-color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .slider-labels {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .budget-row {
+      display: flex; justify-content: space-between;
+      font-size: 10px; letter-spacing: 0.15em; color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .budget-track {
+      height: 5px; background: var(--surface2);
+      border-radius: 99px; overflow: hidden; margin-bottom: 4px;
+    }
+    .budget-fill {
+      height: 100%; border-radius: 99px;
+      transition: width .3s, background .3s;
+    }
+
+    /* ── Subtask rows ── */
+    .sub-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 11px 14px; margin-bottom: 8px;
+    }
+    .sub-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .sub-name-input {
+      flex: 1; background: transparent; border: none;
+      color: var(--text); font-family: inherit; font-size: 14px; outline: none;
+    }
+    .sub-mins { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .min-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); width: 28px; height: 28px; border-radius: 8px;
+      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .min-val { font-size: 13px; min-width: 32px; text-align: center; }
+    .del-btn {
+      background: none; border: none; color: #444;
+      font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1;
+    }
+    .add-sub-btn {
+      width: 100%; background: none;
+      border: 1px dashed var(--border); color: var(--muted);
+      font-family: inherit; font-size: 13px; padding: 11px;
+      border-radius: 12px; cursor: pointer; letter-spacing: 0.05em;
+    }
+    .add-sub-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Running ── */
+    .ring-wrap {
+      position: relative;
+      display: flex; justify-content: center;
+      margin: 8px 0 24px;
+    }
+    .ring-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .timer-digits {
+      font-family: 'Syne', sans-serif;
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .timer-sub {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .cur-task-label {
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .cur-task-pill {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid; border-radius: 99px;
+      padding: 10px 24px; font-size: 15px;
+      margin: 0 auto 8px; width: fit-content; max-width: 90%;
+    }
+    .cur-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .next-label {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .global-track {
+      height: 4px; background: var(--surface2);
+      border-radius: 99px; overflow: hidden;
+      max-width: 300px; margin: 0 auto 6px;
+    }
+    .global-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, #FF6B6B, #FF9F43);
+      transition: width .5s;
+    }
+    .global-label {
+      text-align: center; font-size: 11px;
+      color: var(--muted); margin-bottom: 20px;
+    }
+
+    .sub-dots {
+      display: flex; justify-content: center;
+      gap: 7px; margin-bottom: 28px;
+    }
+    .sub-pip {
+      height: 7px; border-radius: 99px;
+      background: var(--surface2);
+      width: 7px; transition: all .3s;
+    }
+    .sub-pip.active { width: 22px; }
+    .sub-pip.done { background: #48DBFB; }
+
+    .run-controls {
+      display: flex; gap: 12px;
+    }
+    .ctrl-btn {
+      flex: 1; padding: 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-radius: 12px;
+      font-family: inherit; font-size: 14px; cursor: pointer;
+      transition: background .15s;
+      letter-spacing: 0.05em;
+    }
+    .ctrl-btn:active { background: var(--surface2); }
+    .ctrl-btn.primary {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+
+    /* ── Done ── */
+    .done-emoji { font-size: 64px; margin-bottom: 16px; }
+    .done-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 36px; font-weight: 800; margin-bottom: 6px;
+    }
+    .done-sub { font-size: 16px; margin-bottom: 4px; }
+    .done-stat { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+    .done-tasks {
+      text-align: left;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .done-task-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface); border-radius: 10px; padding: 11px 14px;
+      font-size: 13px;
+    }
+    .done-task-row span:first-of-type { flex: 1; }
+    .done-check { font-size: 12px; flex-shrink: 0; }
+
+    /* ── Install banner ── */
+    #install-banner {
+      position: fixed; bottom: calc(var(--safe-bot) + 16px);
+      left: 16px; right: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      z-index: 999;
+      animation: fadeUp .4s ease;
+    }
+    #install-banner .ib-text { flex: 1; font-size: 13px; }
+    #install-banner .ib-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    #install-banner button {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px;
+      font-family: inherit; font-size: 13px;
+      padding: 8px 14px; cursor: pointer; flex-shrink: 0;
+    }
+    #install-close {
+      background: none !important; color: var(--muted) !important;
+      padding: 4px 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- PWA Install Banner -->
+  <div id="install-banner" style="display:none">
+    <div class="ib-text">
+      <div>Install Focus Sessions</div>
+      <div class="ib-sub">Add to home screen for the best experience</div>
+    </div>
+    <button id="install-btn">Install</button>
+    <button id="install-close">✕</button>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // PWA Install prompt
+    let deferredPrompt;
+    window.addEventListener("beforeinstallprompt", e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const banner = document.getElementById("install-banner");
+      if (banner) banner.style.display = "flex";
+    });
+    document.getElementById("install-btn")?.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      document.getElementById("install-banner").style.display = "none";
+    });
+    document.getElementById("install-close")?.addEventListener("click", () => {
+      document.getElementById("install-banner").style.display = "none";
+    });
+  </script>
+</body>
+</html>
