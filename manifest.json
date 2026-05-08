@@ -4,7 +4,7 @@
   "description": "Schedule activities with timed subtasks and notifications",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0a0a0c",
+  "background_color": "#0a0a0c" ,
   "theme_color": "#0a0a0c",
   "orientation": "portrait",
   "icons": [
