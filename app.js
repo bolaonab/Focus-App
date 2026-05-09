@@ -1,4 +1,4 @@
-//  ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 const COLORS = ["#FF6B6B","#FF9F43","#FECA57","#48DBFB","#FF9FF3","#54A0FF","#00D2D3","#A29BFE"];
 
 let state = {
@@ -333,11 +333,20 @@ function screenSetup() {
       value="${esc(state.activity)}"
       oninput="state.activity=this.value;saveDraft()" />
 
-    <label class="field-label">TOTAL DURATION — <span style="color:#FF6B6B">${formatDuration(state.totalMinutes)}</span></label>
-    <input type="range" class="slider" min="5" max="240" step="5"
-      value="${state.totalMinutes}"
-      oninput="state.totalMinutes=+this.value;saveDraft();render()" />
-    <div class="slider-labels"><span>5m</span><span>4h</span></div>
+    <label class="field-label">TOTAL DURATION</label>
+    <div class="duration-input-row">
+      <input type="number" class="duration-input" id="total-hrs"
+        min="0" max="23" placeholder="0"
+        value="${Math.floor(state.totalMinutes/60)}"
+        oninput="setTotalDuration()" />
+      <span class="duration-sep">h</span>
+      <input type="number" class="duration-input" id="total-mins"
+        min="0" max="59" placeholder="0"
+        value="${state.totalMinutes%60}"
+        oninput="setTotalDuration()" />
+      <span class="duration-sep">m</span>
+      <span class="duration-preview">${formatDuration(state.totalMinutes)}</span>
+    </div>
 
     <div class="budget-row">
       <span>TIME ALLOCATED</span>
@@ -378,9 +387,11 @@ function subtaskRow(t, i) {
     <input class="sub-name-input" value="${esc(t.name)}"
       oninput="updateSubtaskName('${t.id}',this.value)" />
     <div class="sub-mins">
-      <button class="min-btn" onclick="adjustMins('${t.id}',-5)">−</button>
-      <span class="min-val">${t.minutes}m</span>
-      <button class="min-btn" onclick="adjustMins('${t.id}',5)">+</button>
+      <input type="number" class="sub-time-input" min="1" max="999"
+        value="${t.minutes}"
+        oninput="setSubtaskMins('${t.id}',this.value)"
+        onblur="fixSubtaskMins('${t.id}',this)" />
+      <span class="sub-time-unit">m</span>
     </div>
     <button class="del-btn" onclick="removeSubtask('${t.id}')">×</button>
   </div>`;
@@ -524,6 +535,42 @@ window.beginNextSubtask = () => {
   render();
 };
 
+window.setTotalDuration = () => {
+  const h = parseInt(document.getElementById("total-hrs")?.value) || 0;
+  const m = parseInt(document.getElementById("total-mins")?.value) || 0;
+  const total = h * 60 + m;
+  if (total >= 1) { state.totalMinutes = total; saveDraft(); }
+  const preview = document.querySelector(".duration-preview");
+  if (preview) preview.textContent = formatDuration(state.totalMinutes);
+  refreshBudgetBar();
+};
+
+function refreshBudgetBar() {
+  const alloc = allocatedMinutes();
+  const rem = state.totalMinutes - alloc;
+  const pct = Math.min(100, (alloc / state.totalMinutes) * 100);
+  const color = rem < 0 ? "#FF6B6B" : rem === 0 ? "#FECA57" : "#48DBFB";
+  const fill = document.querySelector(".budget-fill");
+  const label = document.querySelector(".budget-row span:last-child");
+  if (fill) { fill.style.width = pct+"%"; fill.style.background = color; }
+  if (label) { label.textContent = rem>=0 ? rem+"m free" : (-rem)+"m over"; label.style.color = color; }
+}
+
+window.setSubtaskMins = (id, val) => {
+  const mins = parseInt(val);
+  if (!mins || mins < 1) return;
+  const t = state.subtasks.find(t => t.id === id);
+  if (t) { t.minutes = mins; saveDraft(); refreshBudgetBar(); }
+};
+
+window.fixSubtaskMins = (id, el) => {
+  const t = state.subtasks.find(t => t.id === id);
+  if (!t) return;
+  const val = Math.max(1, parseInt(el.value) || 1);
+  t.minutes = val; el.value = val;
+  saveDraft(); refreshBudgetBar();
+};
+
 window.toggleAutoStart = () => {
   state.autoStart = !state.autoStart;
   saveDraft();
@@ -534,9 +581,7 @@ window.goHome = () => { state.screen = "home"; render(); };
 window.goSetup = () => { state.screen = "setup"; render(); };
 
 window.addSubtask = () => {
-  const rem = state.totalMinutes - allocatedMinutes();
-  if (rem <= 0) return;
-  const mins = Math.min(rem, 15);
+  const mins = 15;
   state.subtasks.push({ id: uid(), name: `Subtask ${state.subtasks.length+1}`, minutes: mins });
   state.nextId++;
   saveDraft(); render();
@@ -550,14 +595,6 @@ window.removeSubtask = (id) => {
 window.updateSubtaskName = (id, val) => {
   const t = state.subtasks.find(t => t.id === id);
   if (t) { t.name = val; saveDraft(); }
-};
-
-window.adjustMins = (id, delta) => {
-  const t = state.subtasks.find(t => t.id === id);
-  if (!t) return;
-  const others = state.subtasks.filter(x => x.id !== id).reduce((a,x)=>a+x.minutes,0);
-  t.minutes = Math.max(1, Math.min(t.minutes + delta, state.totalMinutes - others));
-  saveDraft(); render();
 };
 
 window.startSession = async () => {

@@ -196,16 +196,7 @@
     }
     .text-input:focus { border-color: #444; }
 
-    .slider {
-      width: 100%;
-      accent-color: var(--accent);
-      margin-bottom: 4px;
-    }
-    .slider-labels {
-      display: flex; justify-content: space-between;
-      font-size: 11px; color: var(--muted);
-      margin-bottom: 20px;
-    }
+
 
     .budget-row {
       display: flex; justify-content: space-between;
@@ -233,12 +224,40 @@
       color: var(--text); font-family: inherit; font-size: 14px; outline: none;
     }
     .sub-mins { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .min-btn {
-      background: var(--surface2); border: 1px solid var(--border);
-      color: var(--text); width: 28px; height: 28px; border-radius: 8px;
-      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    /* ── Duration input ── */
+    .duration-input-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px;
     }
-    .min-val { font-size: 13px; min-width: 32px; text-align: center; }
+    .duration-input {
+      width: 64px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--text);
+      padding: 11px 10px; border-radius: 10px;
+      font-family: inherit; font-size: 18px; font-weight: 500;
+      text-align: center; outline: none;
+      -moz-appearance: textfield;
+    }
+    .duration-input::-webkit-outer-spin-button,
+    .duration-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .duration-input:focus { border-color: #FF6B6B; }
+    .duration-sep { font-size: 16px; color: var(--muted); }
+    .duration-preview {
+      margin-left: 8px; font-size: 13px;
+      color: #FF6B6B; letter-spacing: 0.05em;
+    }
+    /* ── Subtask time input ── */
+    .sub-time-input {
+      width: 52px; background: var(--surface2);
+      border: 1px solid var(--border); color: var(--text);
+      padding: 6px 6px; border-radius: 8px;
+      font-family: inherit; font-size: 14px;
+      text-align: center; outline: none;
+      -moz-appearance: textfield;
+    }
+    .sub-time-input::-webkit-outer-spin-button,
+    .sub-time-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .sub-time-input:focus { border-color: #FF6B6B; }
+    .sub-time-unit { font-size: 12px; color: var(--muted); }
     .del-btn {
       background: none; border: none; color: #444;
       font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1;
